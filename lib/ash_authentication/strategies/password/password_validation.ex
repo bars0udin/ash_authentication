@@ -45,11 +45,44 @@ defmodule AshAuthentication.Strategy.Password.PasswordValidation do
   end
   ```
 
+  ## Insisting on a *new* password
+
+  The opposite rule — that the submitted password must **not** be the one
+  currently stored — is this validation negated, and needs nothing else:
+
+  ```elixir
+  update :change_password do
+    argument :password, :string, sensitive?: true, allow_nil?: false
+
+    validate negate({AshAuthentication.Strategy.Password.PasswordValidation, strategy_name: :password}) do
+      message "New password must be different from your current password."
+    end
+
+    change {AshAuthentication.Strategy.Password.HashPasswordChange, strategy_name: :password}
+  end
+  ```
+
+  A record which has never had a password set matches nothing, so any password
+  is new for one.
+
   """
   use Ash.Resource.Validation
   alias Ash.{Changeset, Resource.Validation}
   alias AshAuthentication.{Errors.AuthenticationFailed, Info}
   require Logger
+
+  @doc """
+  Describes what this validation checks.
+
+  Exported so that the validation can be wrapped by
+  `Ash.Resource.Validation.Builtins.negate/1`, whose `init/1` refuses any
+  validation which does not export it. Negated, this reads as "the submitted
+  password is not the one currently stored", which is what a change-of-password
+  flow wants in order to insist on a new one.
+  """
+  @impl true
+  @spec describe(keyword) :: [{:message, String.t()} | {:vars, keyword}]
+  def describe(_opts), do: [message: "must match the current password", vars: []]
 
   @doc false
   @impl true
