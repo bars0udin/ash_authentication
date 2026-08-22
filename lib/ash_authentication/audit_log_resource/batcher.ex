@@ -168,12 +168,27 @@ defmodule AshAuthentication.AuditLogResource.Batcher do
     end)
   end
 
+  # Entries are grouped by tenant before writing. A single batch is one
+  # `Ash.bulk_create/4` call, which takes one tenant, so a queue holding entries
+  # for several tenants has to be written as several batches — otherwise a
+  # tenant-scoped audit log resource rejects the whole batch.
   defp write_batch(resource, config) do
+    config.queue
+    |> Enum.group_by(& &1.tenant)
+    |> Enum.each(fn {tenant, changesets} ->
+      write_tenant_batch(resource, config, tenant, changesets)
+    end)
+
+    %{config | queue: [], queue_size: 0}
+  end
+
+  defp write_tenant_batch(resource, config, tenant, changesets) do
     bulk_result =
-      config.queue
+      changesets
       |> Stream.map(& &1.attributes)
       |> Ash.bulk_create(resource, config.action,
         domain: config.domain,
+        tenant: tenant,
         return_errors?: true,
         assume_casted?: true,
         context: %{private: %{ash_authentication?: true}}
@@ -188,7 +203,5 @@ defmodule AshAuthentication.AuditLogResource.Batcher do
         """
       end)
     end
-
-    %{config | queue: [], queue_size: 0}
   end
 end

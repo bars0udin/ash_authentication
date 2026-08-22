@@ -10,12 +10,14 @@ defmodule Example do
     resource Example.ApiKey
     resource Example.AuditLog
     resource Example.AuditLogNoExpiry
+    resource Example.MultiTenantAuditLog
     resource Example.OidcConnection
     resource Example.Token
     resource Example.TokenWithCustomCreateTimestamp
     resource Example.User
     resource Example.UserIdentity
     resource Example.UserWithAuditLog
+    resource Example.MultiTenantUserWithAuditLog
     resource Example.UserWithEmptyIncludes
     resource Example.UserWithExcludedActions
     resource Example.UserWithExcludedStrategies

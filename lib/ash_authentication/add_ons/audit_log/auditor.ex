@@ -118,7 +118,9 @@ defmodule AshAuthentication.AddOn.AuditLog.Auditor do
     }
 
     with {:error, reason} <-
-           AshAuthentication.AuditLogResource.log_activity(audit_strategy, params) do
+           AshAuthentication.AuditLogResource.log_activity(audit_strategy, params,
+             tenant: Map.get(context, :tenant)
+           ) do
       Logger.error(fn ->
         """
         Error writing audit log: #{inspect(reason)}

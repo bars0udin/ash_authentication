@@ -46,7 +46,14 @@ defmodule AshAuthentication.AddOn.AuditLog.BruteForcePreparation do
          {:ok, audit_log} <- get_audit_log(query.resource, strategy) do
       Ash.Query.after_action(
         query,
-        &check_rate_limit_after_action(&1, &2, strategy, audit_log, opts)
+        &check_rate_limit_after_action(
+          &1,
+          &2,
+          strategy,
+          audit_log,
+          Map.get(context, :tenant),
+          opts
+        )
       )
     else
       _ -> query
@@ -57,16 +64,23 @@ defmodule AshAuthentication.AddOn.AuditLog.BruteForcePreparation do
     with {:ok, strategy} <- Info.find_strategy(input, context, opts),
          {:ok, audit_log} <- get_audit_log(input.resource, strategy),
          user when not is_nil(user) <- ActionInput.get_argument(input, :user) do
-      check_rate_limit_for_input(input, user, strategy, audit_log, opts)
+      check_rate_limit_for_input(
+        input,
+        user,
+        strategy,
+        audit_log,
+        Map.get(context, :tenant),
+        opts
+      )
     else
       _ -> input
     end
   end
 
-  defp check_rate_limit_after_action(_query, results, strategy, audit_log, opts) do
+  defp check_rate_limit_after_action(_query, results, strategy, audit_log, tenant, opts) do
     case results do
       [user] when is_struct(user) ->
-        case check_rate_limit(user, strategy, audit_log, opts) do
+        case check_rate_limit(user, strategy, audit_log, tenant, opts) do
           :ok -> {:ok, results}
           {:error, _} = error -> error
         end
@@ -76,8 +90,8 @@ defmodule AshAuthentication.AddOn.AuditLog.BruteForcePreparation do
     end
   end
 
-  defp check_rate_limit_for_input(input, user, strategy, audit_log, opts) do
-    case check_rate_limit(user, strategy, audit_log, opts) do
+  defp check_rate_limit_for_input(input, user, strategy, audit_log, tenant, opts) do
+    case check_rate_limit(user, strategy, audit_log, tenant, opts) do
       :ok -> input
       {:error, error} -> ActionInput.add_error(input, error)
     end
@@ -93,13 +107,15 @@ defmodule AshAuthentication.AddOn.AuditLog.BruteForcePreparation do
     end
   end
 
-  defp check_rate_limit(user, strategy, audit_log, opts) do
+  defp check_rate_limit(user, strategy, audit_log, tenant, opts) do
     subject = AshAuthentication.user_to_subject(user)
     window = strategy.audit_log_window
     max_failures = strategy.audit_log_max_failures
     cutoff = DateTime.add(DateTime.utc_now(), -window, :second)
 
-    case BruteForceHelpers.count_failures(audit_log, subject, strategy.name, cutoff) do
+    criteria = [subject: subject, strategy: strategy.name, tenant: tenant]
+
+    case BruteForceHelpers.count_failures(audit_log, criteria, cutoff) do
       {:ok, failure_count} when failure_count >= max_failures ->
         action_name = Keyword.get(opts, :action_name, :unknown)
 

@@ -19,7 +19,10 @@ defmodule AshAuthentication.AddOn.AuditLog.BruteForceHelpers do
   alias AshAuthentication.AuditLogResource
 
   @type criteria :: [
-          {:subject, String.t()} | {:identity, String.t()} | {:strategy, atom()}
+          {:subject, String.t()}
+          | {:identity, String.t()}
+          | {:strategy, atom()}
+          | {:tenant, term()}
         ]
 
   @doc """
@@ -40,6 +43,10 @@ defmodule AshAuthentication.AddOn.AuditLog.BruteForceHelpers do
   - `:subject` - the user's authentication subject
   - `:identity` - the submitted identity (e.g. email or username)
   - `:strategy` - the strategy name
+  - `:tenant` - the tenant the attempt was made in. Unlike the others this is
+    not a filter: it sets the tenant on the query, so a multitenant audit log
+    resource is scoped by Ash in the ordinary way. Ignored by a resource which
+    is not multitenant.
 
   The audit log entries must additionally have `status == :failure` and have
   been `logged_at` at or after the given cutoff.
@@ -80,6 +87,9 @@ defmodule AshAuthentication.AddOn.AuditLog.BruteForceHelpers do
       {:strategy, value}, query ->
         attr = AuditLogResource.Info.audit_log_attributes_strategy!(audit_log_resource)
         Ash.Query.filter(query, ^ref(attr) == ^value)
+
+      {:tenant, value}, query ->
+        Ash.Query.set_tenant(query, value)
     end)
   end
 end

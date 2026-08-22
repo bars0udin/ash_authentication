@@ -208,17 +208,26 @@ defmodule AshAuthentication.AuditLogResource do
 
   @doc """
   Log an authentication event into the audit logger.
+
+  Options:
+
+  - `:tenant` — the tenant the audited action was run for. Required when the
+    audit log resource is itself multitenant, and ignored when it is not.
   """
-  @spec log_activity(strategy :: AshAuthentication.AddOn.AuditLog.t(), map) :: :ok | {:error, any}
-  def log_activity(strategy, params) when is_struct(strategy, AshAuthentication.AddOn.AuditLog) do
+  @spec log_activity(strategy :: AshAuthentication.AddOn.AuditLog.t(), map, keyword) ::
+          :ok | {:error, any}
+  def log_activity(strategy, params, opts \\ [])
+
+  def log_activity(strategy, params, opts)
+      when is_struct(strategy, AshAuthentication.AddOn.AuditLog) do
     if __MODULE__.Info.audit_log_write_batching_enabled?(strategy.audit_log_resource) do
-      send_batched_write(strategy, params)
+      send_batched_write(strategy, params, opts)
     else
-      direct_write(strategy, params)
+      direct_write(strategy, params, opts)
     end
   end
 
-  def log_activity(strategy, _params) do
+  def log_activity(strategy, _params, _opts) do
     {:error,
      AssumptionFailed.exception(
        message: """
@@ -228,8 +237,8 @@ defmodule AshAuthentication.AuditLogResource do
      )}
   end
 
-  defp send_batched_write(strategy, params) do
-    case make_changeset(strategy, params) do
+  defp send_batched_write(strategy, params, opts) do
+    case make_changeset(strategy, params, opts) do
       changeset when changeset.valid? == true ->
         __MODULE__.Batcher.enqueue(changeset)
 
@@ -238,16 +247,16 @@ defmodule AshAuthentication.AuditLogResource do
     end
   end
 
-  defp direct_write(strategy, params) do
+  defp direct_write(strategy, params, opts) do
     with {:ok, _} <-
            strategy
-           |> make_changeset(params)
+           |> make_changeset(params, opts)
            |> Ash.create() do
       :ok
     end
   end
 
-  defp make_changeset(strategy, params) do
+  defp make_changeset(strategy, params, opts) do
     action_name = Info.audit_log_write_action_name!(strategy.audit_log_resource)
     logged_at_name = Info.audit_log_attributes_logged_at!(strategy.audit_log_resource)
     resource_name = Info.audit_log_attributes_resource!(strategy.audit_log_resource)
@@ -257,6 +266,6 @@ defmodule AshAuthentication.AuditLogResource do
     |> Ash.Changeset.set_context(%{private: %{ash_authentication?: true}})
     |> Ash.Changeset.change_new_attribute(logged_at_name, DateTime.utc_now())
     |> Ash.Changeset.change_new_attribute(resource_name, strategy.resource)
-    |> Ash.Changeset.for_create(action_name, params)
+    |> Ash.Changeset.for_create(action_name, params, tenant: Keyword.get(opts, :tenant))
   end
 end

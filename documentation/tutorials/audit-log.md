@@ -372,6 +372,44 @@ Each audit log entry contains:
   - `params` - Non-sensitive parameters from the action
 - `resource` - The resource module that was authenticated
 
+## Multitenancy
+
+The audit log resource can be multitenant. When it is, entries are written under
+the tenant the audited action was run for, and the failure counts behind
+`brute_force_strategy {:audit_log, ...}` are read back under that same tenant.
+Both the `:attribute` and `:context` multitenancy strategies work.
+
+Nothing needs to be configured for this — it follows from the audit log
+resource's own `multitenancy` block:
+
+```elixir
+defmodule MyApp.Accounts.AuditLog do
+  use Ash.Resource,
+    extensions: [AshAuthentication.AuditLogResource],
+    domain: MyApp.Accounts
+
+  multitenancy do
+    strategy :attribute
+    attribute :organisation_id
+  end
+end
+```
+
+Whether you want this depends on what an identity means in your application:
+
+- **A tenant-scoped audit log** is right when the same identity value names a
+  different account in each tenant — a phone number or username that two tenants
+  can both issue. Counting failures across tenants would then let one tenant's
+  attacker lock a stranger out of another tenant's account.
+
+- **A global audit log** (the default — simply do not declare multitenancy on
+  the resource) is right when an identity means the same person everywhere, and
+  you want an attacker's attempts counted together no matter which tenant they
+  come through.
+
+Note that failures counted by *subject* rather than by identity are already
+separated, because a subject names one specific user record.
+
 ## Security considerations
 
 - Sensitive fields (passwords, tokens, API keys) are automatically filtered from audit logs unless explicitly included via `include_fields`

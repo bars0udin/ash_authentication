@@ -57,7 +57,7 @@ defmodule AshAuthentication.AddOn.AuditLog.IdentityBruteForcePreparation do
     with {:ok, strategy} <- Info.find_strategy(input, context, opts),
          {:ok, audit_log} <- audit_log_for(input.resource, strategy),
          identity when is_binary(identity) <- identity_for(input, strategy) do
-      enforce_limit(input, strategy, audit_log, identity, opts)
+      enforce_limit(input, strategy, audit_log, identity, Map.get(context, :tenant), opts)
     else
       _ -> :ok
     end
@@ -77,14 +77,14 @@ defmodule AshAuthentication.AddOn.AuditLog.IdentityBruteForcePreparation do
     end
   end
 
-  defp enforce_limit(input, strategy, audit_log, identity, opts) do
+  defp enforce_limit(input, strategy, audit_log, identity, tenant, opts) do
     window = Helpers.time_to_seconds(strategy.audit_log_window)
     max_failures = strategy.audit_log_max_failures
     cutoff = DateTime.add(DateTime.utc_now(), -window, :second)
 
     case BruteForceHelpers.count_failures(
            audit_log,
-           [identity: identity, strategy: strategy.name],
+           [identity: identity, strategy: strategy.name, tenant: tenant],
            cutoff
          ) do
       {:ok, count} when count >= max_failures ->

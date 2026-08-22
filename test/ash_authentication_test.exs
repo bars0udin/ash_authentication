@@ -13,6 +13,7 @@ defmodule AshAuthenticationTest do
       assert Enum.sort([
                Example.User,
                Example.UserWithAuditLog,
+               Example.MultiTenantUserWithAuditLog,
                Example.UserWithEmptyIncludes,
                Example.UserWithExcludedActions,
                Example.UserWithExcludedStrategies,
