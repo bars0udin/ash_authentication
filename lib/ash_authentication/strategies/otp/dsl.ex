@@ -88,6 +88,12 @@ defmodule AshAuthentication.Strategy.Otp.Dsl do
             "Allows registering via OTP. Sign-in becomes an upsert action instead of a read action, so users who don't exist are created on first sign-in.",
           default: false
         ],
+        register_action_accept: [
+          type: {:list, :atom},
+          default: [],
+          doc:
+            "A list of additional fields to be accepted in the sign-in action when `registration_enabled?` is `true`. They are written when the user is created and left alone when an existing user signs in."
+        ],
         case_sensitive?: [
           type: :boolean,
           doc:

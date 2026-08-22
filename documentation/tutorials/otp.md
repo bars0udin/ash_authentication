@@ -243,6 +243,7 @@ When registration is enabled:
 - The **request** action sends an OTP code even if no user with that email exists yet.
 - The **sign-in** action becomes a `:create` action with `upsert? true`. If the user doesn't exist, they are created; if they do, they are matched by their identity.
 - `{:audit_log, ...}` is **not** a valid `brute_force_strategy` in this mode, because audit log mitigation requires an existing user record. Use `:rate_limit` or `{:preparation, MyModule}` instead.
+- The sign-in action accepts nothing beyond the identity and the code unless you list additional fields in `register_action_accept` (see below).
 - The sender receives the email address as a string (instead of a user record) when the user doesn't exist yet. Handle both cases in your sender:
 
 ```elixir
@@ -256,6 +257,28 @@ def send(user_or_email, otp_code, _opts) do
   MyApp.Accounts.Emails.deliver_otp(email, otp_code)
 end
 ```
+
+### Collecting extra fields at registration
+
+A registration is often the only moment you can collect something — a display
+name, or the timestamp at which terms were accepted. `register_action_accept`
+adds those fields to the sign-in action's accept list, mirroring the option of
+the same name on the password strategy:
+
+```elixir
+otp do
+  identity_field :email
+  registration_enabled? true
+  register_action_accept [:display_name, :accepted_terms_at]
+  sender MyApp.Accounts.User.Senders.SendOtp
+end
+```
+
+The fields are written when the user is created. They are *not* added to
+`upsert_fields`, so an existing user signing in again keeps the values they
+registered with rather than having them rewritten from whatever the sign-in form
+submitted. It defaults to `[]`, so a strategy that does not set it behaves
+exactly as before.
 
 ### Registration on a multitenant resource
 

@@ -154,8 +154,13 @@ defmodule AshAuthentication.Strategy.Otp.Transformer do
         identity.keys == [strategy.identity_field]
       end)
 
+    # `upsert_fields` is deliberately left as the identity alone. It governs what
+    # happens *on conflict* — that is, when an existing user signs in — and the
+    # registration fields belong to registration: rewriting a user's profile from
+    # whatever a sign-in form happened to submit is not what anyone asked for.
     Transformer.build_entity(Resource.Dsl, [:actions], :create,
       name: strategy.sign_in_action_name,
+      accept: Enum.uniq(List.wrap(strategy.register_action_accept)),
       arguments: arguments,
       changes: changes,
       metadata: metadata,

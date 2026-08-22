@@ -21,6 +21,7 @@ defmodule Example do
     resource Example.UserWithExcludedStrategies
     resource Example.UserWithOtp
     resource Example.UserWithRegisterOtp
+    resource Example.UserWithRegisterOtpAccept
     resource Example.UserWithExplicitIncludes
     resource Example.UserWithFailingSender
     resource Example.UserWithRegisterMagicLink
