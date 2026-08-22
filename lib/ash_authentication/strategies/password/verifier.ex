@@ -144,50 +144,32 @@ defmodule AshAuthentication.Strategy.Password.Verifier do
        when strategy.sign_in_tokens_enabled? do
     resource = Verifier.get_persisted(dsl_state, :module)
 
-    cond do
-      !strategy.sign_in_enabled? ->
-        {:error,
-         DslError.exception(
-           module: resource,
-           path: [
-             :authentication,
-             :strategies,
-             :password,
-             strategy.name,
-             :sign_in_tokens_enabled?
-           ],
-           message: """
-           The `sign_in_tokens_enabled?` option requires that `sign_in_enabled?` be set to `true`.
-           """
-         )}
-
-      !Info.authentication_tokens_enabled?(dsl_state) ->
-        {:error,
-         DslError.exception(
-           module: resource,
-           path: [
-             :authentication,
-             :strategies,
-             :password,
-             strategy.name,
-             :sign_in_tokens_enabled?
-           ],
-           message: """
-           The `sign_in_tokens_enabled?` option requires that tokens are enabled for your resource. For example:
+    if Info.authentication_tokens_enabled?(dsl_state) do
+      :ok
+    else
+      {:error,
+       DslError.exception(
+         module: resource,
+         path: [
+           :authentication,
+           :strategies,
+           :password,
+           strategy.name,
+           :sign_in_tokens_enabled?
+         ],
+         message: """
+         The `sign_in_tokens_enabled?` option requires that tokens are enabled for your resource. For example:
 
 
-              authentication do
-                ...
+            authentication do
+              ...
 
-                tokens do
-                  enabled? true
-                end
+              tokens do
+                enabled? true
               end
-           """
-         )}
-
-      true ->
-        :ok
+            end
+         """
+       )}
     end
   end
 

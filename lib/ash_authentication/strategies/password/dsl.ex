@@ -108,14 +108,14 @@ defmodule AshAuthentication.Strategy.Password.Dsl do
         sign_in_enabled?: [
           type: :boolean,
           doc:
-            "If you do not want new users to be able to sign in using this strategy, set this to false.",
+            "If you do not want new users to be able to sign in using this strategy, set this to false. The sign in action and its `POST /auth/<subject>/<strategy>/sign_in` route are then not generated at all; `sign_in_tokens_enabled?` is unaffected, so a resource can still exchange a short-lived sign in token for a session.",
           required: false,
           default: true
         ],
         sign_in_tokens_enabled?: [
           type: :boolean,
           doc:
-            "Whether or not to support generating short lived sign in tokens. Requires the resource to have tokens enabled.",
+            "Whether or not to support generating short lived sign in tokens. Requires the resource to have tokens enabled. Independent of `sign_in_enabled?`.",
           required: false,
           default: true
         ],

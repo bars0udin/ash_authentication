@@ -26,6 +26,7 @@ defmodule AshAuthenticationTest do
                Example.UserWithRegisterOtp,
                Example.UserWithRegisterOtpAccept,
                Example.UserWithSelectiveStrategyIncludes,
+               Example.UserWithSignInTokensOnly,
                Example.UserWithTokenRequired,
                Example.UserWithTotp,
                Example.UserWithTotpConfirmSetup,

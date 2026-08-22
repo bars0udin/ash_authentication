@@ -32,10 +32,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Password do
   @spec phases(Password.t()) :: [phase]
   def phases(strategy) do
     []
-    |> maybe_append(
-      strategy.sign_in_tokens_enabled? && strategy.sign_in_enabled?,
-      :sign_in_with_token
-    )
+    |> maybe_append(strategy.sign_in_tokens_enabled?, :sign_in_with_token)
     |> maybe_append(strategy.registration_enabled?, :register)
     |> maybe_append(strategy.sign_in_enabled?, :sign_in)
     |> maybe_concat(strategy.resettable, [:reset_request, :reset])

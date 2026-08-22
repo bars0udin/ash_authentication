@@ -29,6 +29,7 @@ defmodule Example do
     resource Example.UserWithFailingSender
     resource Example.UserWithRegisterMagicLink
     resource Example.UserWithRememberMe
+    resource Example.UserWithSignInTokensOnly
     resource Example.UserWithSelectiveStrategyIncludes
     resource Example.UserWithTokenRequired
     resource Example.UserWithTotp
