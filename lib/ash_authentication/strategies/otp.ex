@@ -110,6 +110,7 @@ defmodule AshAuthentication.Strategy.Otp do
 
   use AshAuthentication.Strategy.Custom, entity: Dsl.dsl()
 
+  alias Ash.Resource
   alias AshAuthentication.{Info, Jwt, SHA256Provider, TokenResource}
 
   @type t :: %__MODULE__{
@@ -160,10 +161,65 @@ defmodule AshAuthentication.Strategy.Otp do
 
   Used when `registration_enabled?` is true, since the user may not exist yet
   and we don't have a subject. The identity value (e.g. email) is used instead.
+
+  When the resource is multitenant and the identity used for the sign-in upsert
+  is scoped to a single tenant (that is, it is not `all_tenants?`), the same
+  identity value names a *different* user in each tenant, so `tenant` is mixed
+  into the hash as well. Without it a code issued in one tenant would resolve to
+  the same JTI in every other tenant, and — because the sign-in action upserts —
+  would sign its holder in to a different tenant's account entirely.
+
+  Passing `nil` (or omitting the argument) computes the un-tenanted JTI, which is
+  also what is computed for a resource whose identity spans all tenants. See
+  `tenant_scoped_identity?/1`.
   """
-  @spec compute_deterministic_jti_for_identity(t, String.t(), String.t()) :: String.t()
-  def compute_deterministic_jti_for_identity(strategy, identity, normalized_otp) do
-    hash!("otp:#{strategy.name}:identity:#{identity}:#{normalized_otp}")
+  @spec compute_deterministic_jti_for_identity(t, String.t(), String.t(), term) :: String.t()
+  def compute_deterministic_jti_for_identity(strategy, identity, normalized_otp, tenant \\ nil) do
+    hash!(
+      "otp:#{strategy.name}:identity:#{identity}:#{tenant_segment(strategy, tenant)}#{normalized_otp}"
+    )
+  end
+
+  @doc """
+  Does the identity backing this strategy's sign-in upsert name a different user
+  in each tenant?
+
+  True when the resource declares a multitenancy strategy and the identity whose
+  keys are exactly the strategy's `identity_field` is not `all_tenants?`. Both
+  the `:attribute` and `:context` multitenancy strategies are treated the same
+  way, since either can scope an identity to one tenant.
+
+  This is derived from what the resource declares rather than configured, so a
+  resource which has always been tenant-scoped gets tenant-scoped bookkeeping
+  without opting in to it.
+  """
+  @spec tenant_scoped_identity?(t) :: boolean
+  def tenant_scoped_identity?(strategy) do
+    resource = strategy.resource
+
+    with false <- is_nil(Resource.Info.multitenancy_strategy(resource)),
+         %{all_tenants?: all_tenants?} <- upsert_identity(resource, strategy.identity_field) do
+      !all_tenants?
+    else
+      _ -> false
+    end
+  end
+
+  defp upsert_identity(resource, identity_field) do
+    resource
+    |> Resource.Info.identities()
+    |> Enum.find(&(&1.keys == [identity_field]))
+  end
+
+  # An empty segment keeps the hash byte-identical to the un-tenanted one, so
+  # resources which are not tenant-scoped are entirely unaffected.
+  defp tenant_segment(strategy, tenant) do
+    with false <- is_nil(tenant),
+         true <- tenant_scoped_identity?(strategy) do
+      "tenant:#{Ash.ToTenant.to_tenant(tenant, strategy.resource)}:"
+    else
+      _ -> ""
+    end
   end
 
   defp hash!(data) do
@@ -244,7 +300,14 @@ defmodule AshAuthentication.Strategy.Otp do
           {:ok, binary} | :error
   def generate_otp_token_for_identity(strategy, identity, otp_code, opts \\ [], context \\ %{}) do
     normalized = normalize_otp(strategy, otp_code)
-    jti = compute_deterministic_jti_for_identity(strategy, to_string(identity), normalized)
+
+    jti =
+      compute_deterministic_jti_for_identity(
+        strategy,
+        to_string(identity),
+        normalized,
+        Keyword.get(opts, :tenant)
+      )
 
     case Jwt.token_for_resource(
            strategy.resource,

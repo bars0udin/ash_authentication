@@ -35,6 +35,7 @@ defmodule Example do
     resource Example.UserWithRecoveryCodes
     resource Example.UserWithWebAuthn
     resource Example.WebAuthnCredential
+    resource Example.MultiTenantUserWithRegisterOtp
     resource Example.MultiTenantUserWithWebAuthn
     resource Example.MultiTenantWebAuthnCredential
   end

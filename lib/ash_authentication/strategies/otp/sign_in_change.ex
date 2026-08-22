@@ -41,11 +41,16 @@ defmodule AshAuthentication.Strategy.Otp.SignInChange do
     else
       normalized_otp = Otp.normalize_otp(strategy, otp_code)
 
-      jti =
-        Otp.compute_deterministic_jti_for_identity(strategy, to_string(identity), normalized_otp)
-
       token_resource = Info.authentication_tokens_token_resource!(strategy.resource)
       context_opts = Ash.Context.to_opts(context)
+
+      jti =
+        Otp.compute_deterministic_jti_for_identity(
+          strategy,
+          to_string(identity),
+          normalized_otp,
+          Keyword.get(context_opts, :tenant)
+        )
 
       changeset
       |> Changeset.force_change_attribute(strategy.identity_field, identity)

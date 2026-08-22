@@ -30,6 +30,7 @@ defmodule AshAuthenticationTest do
                Example.UserWithRegisterMagicLink,
                Example.UserWithWebAuthn,
                Example.UserWithWildcardAndExclusions,
+               Example.MultiTenantUserWithRegisterOtp,
                Example.MultiTenantUserWithWebAuthn,
                ExampleMultiTenant.User,
                ExampleMultiTenant.GlobalUser,
