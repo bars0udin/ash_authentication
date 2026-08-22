@@ -116,6 +116,19 @@ defmodule AshAuthentication.Strategy.Otp.Dsl do
             "The name to use for the sign in action. Defaults to `sign_in_with_<strategy_name>`.",
           required: false
         ],
+        verify_enabled?: [
+          type: :boolean,
+          doc:
+            "Generate an action which checks an OTP code and returns a boolean without signing anybody in, for using a code to authorise something other than a session. Defaults to `false` so that enabling it is a deliberate choice.",
+          required: false,
+          default: false
+        ],
+        verify_action_name: [
+          type: :atom,
+          doc:
+            "The name to use for the verify action. Defaults to `verify_with_<strategy_name>`.",
+          required: false
+        ],
         lookup_action_name: [
           type: :atom,
           doc:

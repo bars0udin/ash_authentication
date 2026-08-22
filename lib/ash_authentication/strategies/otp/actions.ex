@@ -36,6 +36,44 @@ defmodule AshAuthentication.Strategy.Otp.Actions do
   end
 
   @doc """
+  Check an OTP code without signing anybody in.
+
+  Returns `{:ok, true}` when the code is valid for the given identity and
+  `{:ok, false}` when it is not — including when the identity is unknown, so
+  that verification cannot be used to enumerate users. Only available when the
+  strategy sets `verify_enabled? true`.
+  """
+  @spec verify(Otp.t(), map, keyword) :: {:ok, boolean} | {:error, any}
+  def verify(strategy, params, options) do
+    options = Keyword.put_new_lazy(options, :domain, fn -> Info.domain!(strategy.resource) end)
+
+    strategy.resource
+    |> ActionInput.new()
+    |> ActionInput.set_context(%{private: %{ash_authentication?: true}})
+    |> ActionInput.for_action(strategy.verify_action_name, params, options)
+    |> Ash.run_action()
+    |> case do
+      {:ok, result} ->
+        {:ok, result}
+
+      {:error, error} when is_exception(error) ->
+        {:error, Errors.AuthenticationFailed.exception(strategy: strategy, caused_by: error)}
+
+      {:error, error} ->
+        {:error,
+         Errors.AuthenticationFailed.exception(
+           strategy: strategy,
+           caused_by: %{
+             module: __MODULE__,
+             strategy: strategy,
+             action: :verify,
+             message: "Action returned error: #{inspect(error)}"
+           }
+         )}
+    end
+  end
+
+  @doc """
   Attempt to sign a user in via OTP code.
   """
   @spec sign_in(Otp.t(), map, keyword) ::

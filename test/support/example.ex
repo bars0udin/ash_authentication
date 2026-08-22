@@ -20,6 +20,7 @@ defmodule Example do
     resource Example.UserWithExcludedActions
     resource Example.UserWithExcludedStrategies
     resource Example.UserWithOtp
+    resource Example.UserWithOtpVerify
     resource Example.UserWithRegisterOtp
     resource Example.UserWithRegisterOtpAccept
     resource Example.UserWithExplicitIncludes

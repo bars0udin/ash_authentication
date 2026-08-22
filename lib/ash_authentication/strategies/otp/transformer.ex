@@ -26,6 +26,7 @@ defmodule AshAuthentication.Strategy.Otp.Transformer do
          strategy <- maybe_set_sign_in_action_name(strategy),
          strategy <- maybe_set_request_action_name(strategy),
          strategy <- maybe_set_lookup_action_name(strategy),
+         strategy <- maybe_set_verify_action_name(strategy),
          strategy <- maybe_set_otp_generator(strategy),
          strategy <- maybe_transform_otp_lifetime(strategy),
          strategy <- transform_audit_log_window(strategy),
@@ -46,16 +47,13 @@ defmodule AshAuthentication.Strategy.Otp.Transformer do
              dsl_state,
              strategy.request_action_name,
              &build_request_action(&1, strategy)
-           ) do
+           ),
+         {:ok, dsl_state} <- maybe_build_verify_action(dsl_state, strategy) do
       dsl_state =
         dsl_state
         |> then(
           &register_strategy_actions(
-            [
-              strategy.sign_in_action_name,
-              strategy.request_action_name,
-              strategy.lookup_action_name
-            ],
+            strategy_action_names(strategy),
             &1,
             strategy
           )
@@ -64,6 +62,62 @@ defmodule AshAuthentication.Strategy.Otp.Transformer do
 
       {:ok, dsl_state}
     end
+  end
+
+  defp strategy_action_names(strategy) when strategy.verify_enabled? == true,
+    do: [
+      strategy.sign_in_action_name,
+      strategy.request_action_name,
+      strategy.lookup_action_name,
+      strategy.verify_action_name
+    ]
+
+  defp strategy_action_names(strategy),
+    do: [
+      strategy.sign_in_action_name,
+      strategy.request_action_name,
+      strategy.lookup_action_name
+    ]
+
+  defp maybe_build_verify_action(dsl_state, strategy) when strategy.verify_enabled? != true,
+    do: {:ok, dsl_state}
+
+  defp maybe_build_verify_action(dsl_state, strategy) do
+    maybe_build_action(
+      dsl_state,
+      strategy.verify_action_name,
+      &build_verify_action(&1, strategy)
+    )
+  end
+
+  defp build_verify_action(dsl_state, strategy) do
+    identity_attribute = Resource.Info.attribute(dsl_state, strategy.identity_field)
+
+    arguments = [
+      Transformer.build_entity!(Resource.Dsl, [:actions, :action], :argument,
+        name: strategy.identity_field,
+        type: identity_attribute.type,
+        allow_nil?: false,
+        description: "The identity the one-time password was sent to."
+      ),
+      Transformer.build_entity!(Resource.Dsl, [:actions, :action], :argument,
+        name: strategy.otp_param_name,
+        type: :string,
+        allow_nil?: false,
+        sensitive?: true,
+        description: "The one-time password to check."
+      )
+    ]
+
+    Transformer.build_entity(Resource.Dsl, [:actions], :action,
+      name: strategy.verify_action_name,
+      arguments: arguments,
+      returns: Ash.Type.Boolean,
+      run: Otp.VerifyAction,
+      preparations: request_brute_force_preparations(strategy, strategy.verify_action_name),
+      touches_resources: brute_force_touches_resources(dsl_state, strategy),
+      description: "Is the provided one-time password valid for this identity?"
+    )
   end
 
   defp maybe_transform_otp_lifetime(strategy) when is_integer(strategy.otp_lifetime),
@@ -105,6 +159,12 @@ defmodule AshAuthentication.Strategy.Otp.Transformer do
     do: %{strategy | lookup_action_name: String.to_atom("get_by_#{strategy.identity_field}")}
 
   defp maybe_set_lookup_action_name(strategy), do: strategy
+
+  # sobelow_skip ["DOS.StringToAtom"]
+  defp maybe_set_verify_action_name(strategy) when is_nil(strategy.verify_action_name),
+    do: %{strategy | verify_action_name: String.to_atom("verify_with_#{strategy.name}")}
+
+  defp maybe_set_verify_action_name(strategy), do: strategy
 
   defp maybe_set_otp_generator(strategy) when is_nil(strategy.otp_generator),
     do: %{strategy | otp_generator: Otp.DefaultGenerator}

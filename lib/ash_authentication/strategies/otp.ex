@@ -107,6 +107,8 @@ defmodule AshAuthentication.Strategy.Otp do
             sender: nil,
             sign_in_action_name: nil,
             single_use_token?: true,
+            verify_action_name: nil,
+            verify_enabled?: false,
             __spark_metadata__: nil
 
   use AshAuthentication.Strategy.Custom, entity: Dsl.dsl()
@@ -139,6 +141,8 @@ defmodule AshAuthentication.Strategy.Otp do
           sender: {module, keyword},
           sign_in_action_name: atom,
           single_use_token?: boolean,
+          verify_action_name: atom | nil,
+          verify_enabled?: boolean,
           __spark_metadata__: Spark.Dsl.Entity.spark_meta()
         }
 

@@ -328,6 +328,47 @@ When `registration_enabled?` is set there is no user to take a subject from, so 
 4. If found: code is valid. Revokes the token (if `single_use_token?`), generates an auth JWT, returns the user
 5. If not found: authentication fails
 
+## Verifying a code without signing in
+
+Sometimes a code needs to authorise something that is not a session: confirming
+a change of phone number, or stepping up to an operation the current session is
+not sufficient for on its own. Set `verify_enabled? true` to generate an action
+which checks a code and answers a boolean:
+
+```elixir
+otp do
+  identity_field :email
+  verify_enabled? true
+  sender MyApp.Accounts.User.Senders.SendOtp
+end
+```
+
+```elixir
+{:ok, true} = AshAuthentication.Strategy.action(strategy, :verify, %{
+  "email" => "user@example.com",
+  "otp" => "XKPTMH"
+})
+```
+
+It defaults to `false`, so an existing strategy gains no new action unless it
+asks for one. The action is named `verify_with_<strategy_name>` unless
+`verify_action_name` says otherwise, and is exposed at
+`POST /auth/<subject>/<strategy>/verify`.
+
+Two things to know about it:
+
+- An unknown identity answers `{:ok, false}` rather than an error, so
+  verification cannot be used to find out who has an account.
+- A verified code is **spent** when `single_use_token?` is set, which it is by
+  default — exactly as signing in with that code would spend it. A verify action
+  which left a single-use code live would make `single_use_token?` untrue, and
+  the code would stay replayable for the rest of its lifetime.
+
+This differs from the TOTP strategy's verify action, which takes the user whose
+secret to check. A TOTP secret lives on a user record; an OTP code is looked up
+by the identity it was sent to, so this action takes the same arguments the
+strategy's own sign-in action does.
+
 ## Using the strategy programmatically
 
 ```elixir

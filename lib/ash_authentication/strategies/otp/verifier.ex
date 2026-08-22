@@ -20,6 +20,7 @@ defmodule AshAuthentication.Strategy.Otp.Verifier do
     with {:ok, identity_attribute} <- validate_identity_attribute(dsl_state, strategy),
          :ok <- validate_request_action(dsl_state, strategy, identity_attribute),
          :ok <- validate_sign_in_action(dsl_state, strategy, identity_attribute),
+         :ok <- validate_verify_action(dsl_state, strategy, identity_attribute),
          :ok <- validate_generator(strategy),
          :ok <- validate_otp_entropy(strategy) do
       validate_brute_force_strategy(dsl_state, strategy)
@@ -36,6 +37,35 @@ defmodule AshAuthentication.Strategy.Otp.Verifier do
            ) do
       {:ok, identity_attribute}
     end
+  end
+
+  defp validate_verify_action(_dsl_state, strategy, _identity_attribute)
+       when strategy.verify_enabled? != true,
+       do: :ok
+
+  defp validate_verify_action(dsl_state, strategy, identity_attribute) do
+    with {:ok, action} <- validate_action_exists(dsl_state, strategy.verify_action_name),
+         :ok <- validate_verify_action_type(action, strategy),
+         :ok <- validate_action_has_argument(action, strategy.identity_field),
+         :ok <-
+           validate_action_argument_option(action, strategy.identity_field, :type, [
+             identity_attribute.type
+           ]),
+         :ok <- validate_action_has_argument(action, strategy.otp_param_name) do
+      validate_action_option(action, :run, [{Otp.VerifyAction, []}])
+    end
+  end
+
+  defp validate_verify_action_type(%{type: :action}, _strategy), do: :ok
+
+  defp validate_verify_action_type(%{type: actual, name: name}, strategy) do
+    {:error,
+     DslError.exception(
+       module: strategy.resource,
+       path: [:actions, name],
+       message:
+         "The verify action `#{inspect(name)}` must be a generic action, but is a #{actual} action."
+     )}
   end
 
   defp validate_request_action(dsl_state, strategy, identity_attribute) do

@@ -46,6 +46,21 @@ defmodule AshAuthentication.Strategy.Otp.Plug do
     store_authentication_result(conn, result)
   end
 
+  @doc """
+  Check an OTP code without signing anybody in.
+
+  Stores `{:ok, true}` / `{:ok, false}` as the authentication result, so the
+  caller's `AshAuthentication.Plug` handler decides what a verified code
+  entitles the holder to.
+  """
+  @spec verify(Conn.t(), Otp.t()) :: Conn.t()
+  def verify(conn, strategy) do
+    params = subject_params(conn, strategy)
+    opts = opts(conn)
+    result = Strategy.action(strategy, :verify, params, opts)
+    store_authentication_result(conn, result)
+  end
+
   defp subject_params(conn, strategy) do
     subject_name =
       strategy.resource
