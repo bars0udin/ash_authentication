@@ -57,6 +57,18 @@ defmodule Example.UserWithOtp do
           Logger.info("OTP request for #{user.email}, code #{inspect(otp_code)}")
         end
       end
+
+      # A second, independently namespaced code channel which cannot be
+      # exchanged for a session — only checked.
+      otp :code_only do
+        identity_field :email
+        brute_force_strategy({:preparation, Example.TotpNoopPreparation})
+        sign_in_enabled? false
+
+        sender fn user, otp_code, _opts ->
+          Logger.info("Code-only request for #{user.email}, code #{inspect(otp_code)}")
+        end
+      end
     end
   end
 

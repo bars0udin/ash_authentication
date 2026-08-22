@@ -369,6 +369,37 @@ secret to check. A TOTP secret lives on a user record; an OTP code is looked up
 by the identity it was sent to, so this action takes the same arguments the
 strategy's own sign-in action does.
 
+### Codes which can never become a session
+
+Set `sign_in_enabled? false` to remove the sign-in action and route entirely,
+leaving a code channel which can only ever be verified:
+
+```elixir
+otp :sign_in_code do
+  identity_field :email
+  sender MyApp.Accounts.User.Senders.SendSignInCode
+end
+
+otp :password_reset_code do
+  identity_field :email
+  sign_in_enabled? false
+  verify_enabled? true
+  sender MyApp.Accounts.User.Senders.SendResetCode
+end
+```
+
+Two things follow from declaring more than one OTP strategy, which is how you
+give each purpose its own codes:
+
+- **Each strategy is its own namespace.** The stored token's JTI is derived from
+  the strategy name among other things, so a code issued by `:password_reset_code`
+  simply cannot be found by `:sign_in_code`, and vice versa. A code delivered for
+  one purpose is not spendable on another.
+- **Each has its own actions, routes and lifetime**, so a reset code can be
+  shorter-lived than a sign-in code, and can be delivered differently.
+
+`sign_in_enabled?` defaults to `true`, so an existing strategy is unaffected.
+
 ## Using the strategy programmatically
 
 ```elixir

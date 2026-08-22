@@ -13,11 +13,11 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Otp do
 
   @doc false
   @spec phases(Otp.t()) :: [Strategy.phase()]
-  def phases(strategy), do: maybe_add_verify([:request, :sign_in], strategy)
+  def phases(strategy), do: available_actions(strategy)
 
   @doc false
   @spec actions(Otp.t()) :: [Strategy.action()]
-  def actions(strategy), do: maybe_add_verify([:request, :sign_in], strategy)
+  def actions(strategy), do: available_actions(strategy)
 
   @doc false
   @spec method_for_phase(Otp.t(), atom) :: Strategy.http_method()
@@ -31,10 +31,8 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Otp do
     subject_name = Info.authentication_subject_name!(strategy.resource)
     base = "/#{subject_name}/#{strategy.name}"
 
-    [
-      {"#{base}/request", :request},
-      {"#{base}/sign_in", :sign_in}
-    ]
+    [{"#{base}/request", :request}]
+    |> maybe_add(strategy.sign_in_enabled?, {"#{base}/sign_in", :sign_in})
     |> maybe_add(strategy.verify_enabled?, {"#{base}/verify", :verify})
   end
 
@@ -60,8 +58,11 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Otp do
   @spec tokens_required?(Otp.t()) :: true
   def tokens_required?(_), do: true
 
-  defp maybe_add_verify(actions, strategy),
-    do: maybe_add(actions, strategy.verify_enabled?, :verify)
+  defp available_actions(strategy) do
+    [:request]
+    |> maybe_add(strategy.sign_in_enabled?, :sign_in)
+    |> maybe_add(strategy.verify_enabled?, :verify)
+  end
 
   defp maybe_add(list, true, item), do: list ++ [item]
   defp maybe_add(list, _false, _item), do: list

@@ -110,6 +110,13 @@ defmodule AshAuthentication.Strategy.Otp.Dsl do
           doc: "The name to use for the request action. Defaults to `request_<strategy_name>`.",
           required: false
         ],
+        sign_in_enabled?: [
+          type: :boolean,
+          doc:
+            "Whether a delivered code can be exchanged for a session. Set to `false` for a code channel which only ever authorises something other than signing in — pair it with `verify_enabled?`. Defaults to `true`.",
+          required: false,
+          default: true
+        ],
         sign_in_action_name: [
           type: :atom,
           doc:

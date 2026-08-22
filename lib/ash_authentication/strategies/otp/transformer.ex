@@ -36,12 +36,7 @@ defmodule AshAuthentication.Strategy.Otp.Transformer do
              strategy.lookup_action_name,
              &build_lookup_action(&1, strategy)
            ),
-         {:ok, dsl_state} <-
-           maybe_build_action(
-             dsl_state,
-             strategy.sign_in_action_name,
-             &build_sign_in_action(&1, strategy)
-           ),
+         {:ok, dsl_state} <- maybe_build_sign_in_action(dsl_state, strategy),
          {:ok, dsl_state} <-
            maybe_build_action(
              dsl_state,
@@ -64,20 +59,22 @@ defmodule AshAuthentication.Strategy.Otp.Transformer do
     end
   end
 
-  defp strategy_action_names(strategy) when strategy.verify_enabled? == true,
-    do: [
-      strategy.sign_in_action_name,
-      strategy.request_action_name,
-      strategy.lookup_action_name,
-      strategy.verify_action_name
-    ]
+  defp strategy_action_names(strategy) do
+    [strategy.request_action_name, strategy.lookup_action_name]
+    |> maybe_append(strategy.sign_in_enabled?, strategy.sign_in_action_name)
+    |> maybe_append(strategy.verify_enabled?, strategy.verify_action_name)
+  end
 
-  defp strategy_action_names(strategy),
-    do: [
+  defp maybe_build_sign_in_action(dsl_state, strategy) when strategy.sign_in_enabled? != true,
+    do: {:ok, dsl_state}
+
+  defp maybe_build_sign_in_action(dsl_state, strategy) do
+    maybe_build_action(
+      dsl_state,
       strategy.sign_in_action_name,
-      strategy.request_action_name,
-      strategy.lookup_action_name
-    ]
+      &build_sign_in_action(&1, strategy)
+    )
+  end
 
   defp maybe_build_verify_action(dsl_state, strategy) when strategy.verify_enabled? != true,
     do: {:ok, dsl_state}

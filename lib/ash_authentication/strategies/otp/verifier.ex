@@ -114,6 +114,10 @@ defmodule AshAuthentication.Strategy.Otp.Verifier do
      )}
   end
 
+  defp validate_sign_in_action(_dsl_state, strategy, _identity_attribute)
+       when strategy.sign_in_enabled? != true,
+       do: :ok
+
   defp validate_sign_in_action(dsl_state, strategy, identity_attribute) do
     with {:ok, action} <- validate_action_exists(dsl_state, strategy.sign_in_action_name),
          :ok <- validate_sign_in_action_type(action, strategy),
