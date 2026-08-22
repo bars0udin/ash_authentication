@@ -7,4 +7,10 @@ defmodule AshAuthentication.Argon2ProviderTest do
   use ExUnit.Case, async: true
   import AshAuthentication.Argon2Provider
   doctest AshAuthentication.Argon2Provider
+
+  describe "valid?/2" do
+    test "a record with no stored hash cannot be matched by any input" do
+      refute valid?("Marty McFly", nil)
+    end
+  end
 end

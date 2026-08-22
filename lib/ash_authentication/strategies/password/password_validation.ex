@@ -94,7 +94,7 @@ defmodule AshAuthentication.Strategy.Password.PasswordValidation do
          {:ok, password} <- Changeset.fetch_argument(changeset, password_arg) do
       hashed_password = Changeset.get_data(changeset, strategy.hashed_password_field)
 
-      if strategy.hash_provider.valid?(password, hashed_password) do
+      if valid_password?(strategy, password, hashed_password) do
         :ok
       else
         {:error,
@@ -115,6 +115,21 @@ defmodule AshAuthentication.Strategy.Password.PasswordValidation do
          )}
     end
   end
+
+  # A record which has never had a password set stores no hash. That is an
+  # ordinary state rather than a mistake — a user registered through OAuth2, a
+  # magic link or a one-time code has one — and it reaches here whenever this
+  # validation guards a change on such a record. Nothing can match it, so the
+  # answer is "no", taken in the time a wrong password takes so that the two
+  # cannot be told apart. The hash provider is not asked, because
+  # `AshAuthentication.HashProvider.valid?/2` is specified to take a hash.
+  defp valid_password?(strategy, _password, nil) do
+    strategy.hash_provider.simulate()
+    false
+  end
+
+  defp valid_password?(strategy, password, hashed_password),
+    do: strategy.hash_provider.valid?(password, hashed_password)
 
   defp get_strategy(changeset, options) do
     with :error <- Keyword.fetch(options, :strategy_name),

@@ -41,6 +41,22 @@ defmodule AshAuthentication.Strategy.Password.PasswordValidationTest do
                  %{}
                )
     end
+
+    test "a record with no stored hash matches no password" do
+      user = %{build_user() | hashed_password: nil}
+
+      assert {:error, %AuthenticationFailed{field: :current_password}} =
+               user
+               |> Changeset.new()
+               |> Changeset.set_argument(:current_password, "any password at all")
+               |> PasswordValidation.validate(
+                 [
+                   strategy_name: :password,
+                   password_argument: :current_password
+                 ],
+                 %{}
+               )
+    end
   end
 
   describe "describe/1" do

@@ -36,9 +36,15 @@ defmodule AshAuthentication.BcryptProvider do
 
   """
   @impl true
-  @spec valid?(input :: String.t() | nil, hash :: String.t()) :: boolean
+  @spec valid?(input :: String.t() | nil, hash :: String.t() | nil) :: boolean
   if Code.ensure_loaded?(Bcrypt) do
     def valid?(nil, _hash), do: Bcrypt.no_user_verify()
+
+    # A record which has never had a password set stores no hash, which is an
+    # ordinary state rather than a mistake: a user registered through OAuth2, a
+    # magic link or an OTP has one. Nothing can match it, and answering in the
+    # same time a wrong password takes keeps that indistinguishable.
+    def valid?(input, nil) when is_binary(input), do: Bcrypt.no_user_verify()
 
     def valid?(input, hash) when is_binary(input) and is_binary(hash),
       do: Bcrypt.verify_pass(input, hash)
